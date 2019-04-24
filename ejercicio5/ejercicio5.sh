@@ -28,6 +28,17 @@ function exitError() {
     exit 1;
 }
 
+function IFSToLineBreakBegin() {
+    oldIFS=$IFS;
+    IFS=$'\r\n';
+    set -f;
+}
+
+function IFSToLineBreakEnd() {
+    set +f;
+    IFS=$oldIFS;
+}
+
 # muestra la ayuda y finaliza el script
 function showHelp() {
     operationMode=$(getOperationMode "$1");
@@ -40,6 +51,13 @@ function showHelp() {
     fi
 }
 
+function showFinishMessage() {
+    echo;
+    echo "Backup realzado con éxito!"
+    echo -e "Archivo:\t$1";
+    echo -e "Logs:\t\t$2";
+    echo;
+}
 # imprime el modo de operación del script
 function getOperationMode() {
     regex1='^-[tT]$';
@@ -136,34 +154,84 @@ function getFileName() {
 
 # comprime los archivos de la ruta especificada en $1
 function compressAll() {
+    fileName=$(getFileName);
+    outputZipFileName="$fileName.zip";
+    outputLogFile="$fileName.log";
+
     # -r: recursivo
-    # -sf: Muestra los archivos afectados y termina
-    outputFileName=$(getFileName);
-    zip -r "$outputFileName.zip" "$1" 2> /dev/null;
+    zip -r "$outputZipFileName" "$1" 1>/dev/null 2>&1;
     if [ $? -gt 0 ]; then
-        exitError "Hubo un error generando el archivo $outputFileName.zip";
+        exitError "Hubo un error generando el archivo $outputZipFileName";
     fi
 
-    # TODO: LOG
+    # si no hubo error logueo
+    renderOutput "$1" "" "$outputZipFileName" > "$outputLogFile";
+
+    # terminó todo bien!
+    showFinishMessage "$outputZipFileName" "$outputLogFile";
 }
 
 # comprime solo archivos de la ruta especificada en $1
 # que coincidan con la extencion especificada en $2
 function compressByExt() {
+    fileName=$(getFileName "$2");
+    outputZipFileName="$fileName.zip";
+    outputLogFile="$fileName.log";
+
     # -r: recursivo
-    # -sf: Muestra los archivos afectados y termina
-    outputFileName=$(getFileName "$2");
-    zip -r "$outputFileName.zip" "$1" -i "*$2" 1>/dev/null;
+    zip -r "$outputZipFileName" "$1" -i "*$2" 1>/dev/null 2>&1;
     if [ $? -gt 0 ]; then
-        exitError "Hubo un error generando el archivo $outputFileName.zip";
+        exitError "Hubo un error generando el archivo $outputZipFileName";
     fi
 
     # si no hubo error logueo
-    # TODO: LOG
-    # lines=$(zip -rsf "$outputFileName.zip" "$1" -i "*$2");
-    # for line in $lines; do
-    #     echo $line;
-    # done
+    renderOutput "$1" "$2" "$outputZipFileName" > "$outputLogFile";
+
+    # terminó todo bien!
+    showFinishMessage "$outputZipFileName" "$outputLogFile";
+}
+
+# Loguea los resultados a un archivo
+function renderOutput() {
+    # $1: <path> de entrada
+    # $2: <extensión>
+    # $3: Nombre del archivo de salida
+
+    IFSToLineBreakBegin;
+
+    echo "Nombre de archivo de backup:";
+    echo "----------------------------";
+    echo "$3";
+    echo
+    echo "Contenido:";
+    echo "----------------------------";
+
+    # terminan con punto . seguido de cualquier cosa.
+    regex="([.].*)$";
+
+    # variables para ciclar la salida de zip
+    # -rsf: Muestra los archivos afectados y termina
+    result=$(zip -rsf "DUMMY" "$1" -i "*$2");
+    lines=(${result[@]});
+    count=0;
+
+    # filtramos las lineas que corresponden a paths de archivos
+    for line in ${lines[@]}; do
+        if [[ $line =~ $regex ]]; then
+            echo $line;
+            count=$(( $count+1 ));
+        fi
+    done
+
+    # Escribimos las stats.
+    echo;
+    echo "Información:"
+    echo "----------------------------";
+    echo "Archivos resguardados: $count";
+    echo "Generado por el usuario: $USER";
+    echo "Fecha y hora de creación: ${3:0:10} ${3:11:8}";
+
+    IFSToLineBreakEnd;
 }
 
 function makeBackup() {
@@ -176,13 +244,36 @@ function makeBackup() {
 }
 
 function deleteOldBackups() {
-    # TODO: BORRADO
-    echo "Borrar backups";
+    # TODO: BORRADO por tipo de bacup
+    IFSToLineBreakBegin;
+
+    operationMode=$(getOperationMode "$1");
+    result=$(find . -name "*.zip" | sort -r);
+
+    archives=(${result[@]});
+    for i in ${!archives[@]}; do
+        if [ $i -ge 5 ]; then
+            echo;
+            echo "Borrando backups antiguos...";
+            rm -f ${archives[$i]};
+            rm -f ${archives[$i]//".zip"/".log"};
+
+            if [ $? -eq 0 ]; then
+                echo "${archives[$i]} [Borrado]";
+                echo "${archives[$i]//".zip"/".log"}";
+            else
+                echo -e "No se pudo borrar el archivo\n${archives[$i]}";
+            fi
+            echo;
+        fi
+    done
+
+    IFSToLineBreakEnd;
 }
 
 # ---------- Inicio del script ---------- #
 validateParameters "$1" "$2" "$3" "$#";
 showHelp "$1";
-deleteOldBackups
-makeBackup "$1" "$2" "$3"
+makeBackup "$1" "$2" "$3";
+deleteOldBackups;
 
