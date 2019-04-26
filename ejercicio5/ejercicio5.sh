@@ -146,9 +146,9 @@ function getFileName() {
     ext=${ext//\./""};
 
     if [ -z "$ext" ]; then
-        echo "$(date -j "+%Y-%m-%d-%H:%M:%S")";
+        echo "$(date -j "+%Y-%m-%d-%H:%M:%S")-ALL";
     else
-        echo "$(date -j "+%Y-%m-%d-%H:%M:%S")-[$ext]";
+        echo "$(date -j "+%Y-%m-%d-%H:%M:%S")-ONLY-[$ext]";
     fi
 }
 
@@ -244,11 +244,16 @@ function makeBackup() {
 }
 
 function deleteOldBackups() {
-    # TODO: BORRADO por tipo de bacup
     IFSToLineBreakBegin;
 
+    # Borrado por tipo de backup
     operationMode=$(getOperationMode "$1");
-    result=$(find . -name "*.zip" | sort -r);
+    if [[ "$operationMode" = "EXT" ]]; then
+        regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}-ONLY-.*\.zip$";
+    elif [[ "$operationMode" = "ALL" ]]; then
+        regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}-ALL\.zip$";
+    fi
+    result=$(find . -regex $regex | sort -r);
 
     archives=(${result[@]});
     for i in ${!archives[@]}; do
@@ -275,5 +280,5 @@ function deleteOldBackups() {
 validateParameters "$1" "$2" "$3" "$#";
 showHelp "$1";
 makeBackup "$1" "$2" "$3";
-deleteOldBackups;
+deleteOldBackups $1;
 
