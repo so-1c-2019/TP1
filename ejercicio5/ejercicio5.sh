@@ -6,9 +6,8 @@
 # N° Ejercicio:	5
 # Nº Entrega  :	1
 # Integrantes :
-# - XXXXX XXXX              DNI: ########
-# - XXXXX XXXX              DNI: ########
-# - Medrano, Jonatan XXXX   DNI: ########
+# - Nicolas, Martin         DNI: ########
+# - Medrano, Jonatan        DNI: 33557962
 # - Moreno, Emiliano        DNI: 33905487
 # - Sendras, Bruno          DNI: 32090370
 #*********************************************************#
@@ -44,9 +43,66 @@ function showHelp() {
     operationMode=$(getOperationMode "$1");
     if [[ "$operationMode" = "HLP" ]]; then
         echo;
-        echo "AYUDA:";
-        echo "En construccion.";
+        echo "-----------------------------------------------";
+        echo "DESCRIPCION:";
+        echo "-----------------------------------------------";
+        echo "Este script permite crear un backup de una ruta";
+        echo "especificada, de forma recursiva.";
+        echo "Los backups se crean en el directorio de trabajo.";
+        echo "Se mantienen solo los 5 backups mas nuevos de generedos";
+        echo "con -x y los 5 mas nuevos generados con -t";
+        echo "El resto de los backups son automaticamente eliminados.";
         echo;
+        echo "NOTA: El funcionamiento de este script se basa en el comando \"zip\"";
+        echo;
+        echo "-----------------------------------------------";
+        echo "PARAMETROS:";
+        echo "-----------------------------------------------";
+        echo -e "<opciones>:\t-[xX|tT|hH] 1er parametro.";
+        echo -e "\t\tIndican el modo de operacion del script.";
+        echo -e "\t\tPuede indicarse solo una opcion a la vez.";
+        echo;
+        echo -e "\t-x, -X:\tCrea un backup selectivo por extension";
+        echo -e "\t\tde archivo. Debe indicarse la extension";
+        echo -e "\t\tcomo 2do parametro";
+        echo -e "\t-t, -T:\tCrea un backup completo de la ruta";
+        echo -e "\t\tespecificada";
+        echo;
+        echo -e "\t-h, -H:\tMuestra la ayuda.";
+        echo;
+        echo -e "<extension>:\t2do parametro. Extension de los archivos a";
+        echo -e "\t\tincluir en el backup. Solo admite una extension";
+        echo -e "\t\ta la vez.";
+        echo -e "<path>:\t\tUltimo parametro. Ruta que se desea resguardar";
+        echo -e "\t\ten el backup";
+        echo;
+        echo "-----------------------------------------------";
+        echo "USO:";
+        echo "-----------------------------------------------";
+        echo
+        echo "$USER$ $0 <opcion> [<extension>] <path>"
+        echo;
+        echo;
+        echo "-----------------------------------------------";
+        echo "EJEMPLOS:";
+        echo "-----------------------------------------------";
+        echo "1) Crear un backup de todos los archivos \".svg\"";
+        echo "en el directorio \"~/Desktop/MyFolder\":";
+        echo
+        echo "$USER$ $0 -x .svg ~/Desktop/MyFolder"
+        echo;
+        echo;
+        echo "2) Crear un backup de todos los archivos del";
+        echo "directorio \"~/Desktop/MyFolder\":";
+        echo
+        echo "$USER$ $0 -t ~/Desktop/MyFolder"
+        echo;
+        echo
+        echo "3) Consultar ayuda del script:";
+        echo
+        echo "$USER$ $0 -t ~/Desktop/MyFolder"
+        echo;
+        echo
         exitSuccess;
     fi
 }
@@ -146,9 +202,9 @@ function getFileName() {
     ext=${ext//\./""};
 
     if [ -z "$ext" ]; then
-        echo "$(date -j "+%Y-%m-%d-%H:%M:%S")-ALL";
+        echo "$(date -j "+%Y-%m-%d-%H.%M.%S")-ALL";
     else
-        echo "$(date -j "+%Y-%m-%d-%H:%M:%S")-ONLY-[$ext]";
+        echo "$(date -j "+%Y-%m-%d-%H.%M.%S")-ONLY-[$ext]";
     fi
 }
 
@@ -159,7 +215,8 @@ function compressAll() {
     outputLogFile="$fileName.log";
 
     # -r: recursivo
-    zip -r "$outputZipFileName" "$1" 1>/dev/null 2>&1;
+    # zip -r "$outputZipFileName" "$1" 1>/dev/null 2>&1;
+    zip -r "$outputZipFileName" "$1";
     if [ $? -gt 0 ]; then
         exitError "Hubo un error generando el archivo $outputZipFileName";
     fi
@@ -249,23 +306,23 @@ function deleteOldBackups() {
     # Borrado por tipo de backup
     operationMode=$(getOperationMode "$1");
     if [[ "$operationMode" = "EXT" ]]; then
-        regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}-ONLY-.*\.zip$";
+        regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{2\}\.[0-9]\{2\}-ONLY-.*\.zip$";
     elif [[ "$operationMode" = "ALL" ]]; then
-        regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}-ALL\.zip$";
+        regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{2\}\.[0-9]\{2\}-ALL\.zip$";
     fi
-    result=$(find . -regex $regex | sort -r);
+    result=$(find "$(pwd)" -regex $regex -maxdepth 1 | sort -r);
 
     archives=(${result[@]});
     for i in ${!archives[@]}; do
         if [ $i -ge 5 ]; then
             echo;
             echo "Borrando backups antiguos...";
-            rm -f ${archives[$i]};
-            rm -f ${archives[$i]//".zip"/".log"};
+            rm -f "${archives[$i]}";
+            rm -f "${archives[$i]//.zip/.log}";
 
             if [ $? -eq 0 ]; then
                 echo "${archives[$i]} [Borrado]";
-                echo "${archives[$i]//".zip"/".log"}";
+                echo "${archives[$i]//.zip/.log}";
             else
                 echo -e "No se pudo borrar el archivo\n${archives[$i]}";
             fi
@@ -281,4 +338,5 @@ validateParameters "$1" "$2" "$3" "$#";
 showHelp "$1";
 makeBackup "$1" "$2" "$3";
 deleteOldBackups $1;
+exitSuccess;
 
