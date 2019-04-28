@@ -202,9 +202,9 @@ function getFileName() {
     ext=${ext//\./""};
 
     if [ -z "$ext" ]; then
-        echo "$(date -j "+%Y-%m-%d-%H.%M.%S")-ALL";
+        echo "$(date "+%Y-%m-%d-%H.%M.%S")-ALL";
     else
-        echo "$(date -j "+%Y-%m-%d-%H.%M.%S")-ONLY-[$ext]";
+        echo "$(date "+%Y-%m-%d-%H.%M.%S")-ONLY-[$ext]";
     fi
 }
 
@@ -215,8 +215,7 @@ function compressAll() {
     outputLogFile="$fileName.log";
 
     # -r: recursivo
-    # zip -r "$outputZipFileName" "$1" 1>/dev/null 2>&1;
-    zip -r "$outputZipFileName" "$1";
+    zip -r "$outputZipFileName" "$1" 1>/dev/null 2>&1;
     if [ $? -gt 0 ]; then
         exitError "Hubo un error generando el archivo $outputZipFileName";
     fi
@@ -306,12 +305,23 @@ function deleteOldBackups() {
     # Borrado por tipo de backup
     operationMode=$(getOperationMode "$1");
     if [[ "$operationMode" = "EXT" ]]; then
-        regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{2\}\.[0-9]\{2\}-ONLY-.*\.zip$";
+        # regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{2\}\.[0-9]\{2\}-ONLY-.*\.zip$";
+        regex=".*[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]-ONLY-.*\.zip$";
+        # por si no funciona la anterior me aseguro de encontrar algo.
+        simpleRegex=".*-ONLY-.*\.zip$";
     elif [[ "$operationMode" = "ALL" ]]; then
-        regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{2\}\.[0-9]\{2\}-ALL\.zip$";
+        # regex=".*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{2\}\.[0-9]\{2\}-ALL\.zip$";
+        regex=".*[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]-ALL\.zip$";
+        # por si no funciona la anterior me aseguro de encontrar algo.
+        simpleRegex=".*-ALL\.zip$";
     fi
-    result=$(find "$(pwd)" -regex $regex -maxdepth 1 | sort -r);
-
+    
+    result=$(find "$(pwd)" -regex $regex | sort -r) 2>/dev/null;
+    if [ -z "$result" ]; then
+        # si no encontre nada intento con la otra
+        result=$(find "$(pwd)" -regex $simpleRegex | sort -r) 2>/dev/null;
+    fi
+    
     archives=(${result[@]});
     for i in ${!archives[@]}; do
         if [ $i -ge 5 ]; then
