@@ -6,7 +6,7 @@
 # N° Ejercicio:	3
 # Nº Entrega  :	1
 # Integrantes :
-# - Nicolas, Martin         DNI: ########
+# - Nicolas, Martin         DNI: 39375821
 # - Medrano, Jonatan        DNI: 33557962
 # - Moreno, Emiliano        DNI: 33905487
 # - Sendras, Bruno          DNI: 32090370
